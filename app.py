@@ -8,7 +8,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 仅供内部使用，部署后用户看不到
 DATA_FILE_NAME = 'anime_cleaned.xlsx'
 
 
@@ -72,19 +71,70 @@ df_filtered = df_original.copy()  # 用于筛选操作
 # --- 3. 侧边栏筛选器 ---
 st.sidebar.header("⚙️ 数据筛选与排序")
 
-# ... (筛选逻辑不变，保持对 datetime 对象的筛选) ...
+search_term = st.sidebar.text_input("按名称搜索 (中文/原名)", value="")
 
-# 日期筛选
+if search_term:
+    search_term_lower = search_term.lower()
+    df_filtered = df_filtered[
+        df_filtered['中文名'].str.lower().str.contains(search_term_lower, na=False) |
+        df_filtered['原名'].str.lower().str.contains(search_term_lower, na=False)
+        ]
+
+st.sidebar.subheader("📅 日期范围筛选")
+
+# 1. 获取所有可选的年份和月份
 min_year = int(df_original['开播日期'].min().year)
 max_year = int(df_original['开播日期'].max().year)
-year_range = st.sidebar.slider('年份范围', min_year, max_year, (min_year, max_year))
+all_years = list(range(min_year, max_year + 1))
+all_months = list(range(1, 13))
 
-start_date = pd.to_datetime(f"{year_range[0]}-01-01")
-end_date = pd.to_datetime(f"{year_range[1]}-12-31")
+# 2. 起始日期选择
+st.sidebar.markdown("##### 起始时间")
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    start_year = st.selectbox('年份', all_years, index=0, key='start_year', label_visibility='collapsed')
+with col2:
+    start_month = st.selectbox('月份', all_months, index=0, key='start_month', label_visibility='collapsed')
 
-df_filtered = df_filtered[
-    (df_filtered['开播日期'] >= start_date) & (df_filtered['开播日期'] <= end_date)
-    ]
+# 3. 结束日期选择
+st.sidebar.markdown("##### 结束时间")
+col3, col4 = st.sidebar.columns(2)
+with col3:
+    # 默认值设置为最大年份
+    end_year = st.selectbox('年份', all_years, index=len(all_years) - 1, key='end_year', label_visibility='collapsed')
+with col4:
+    # 默认值设置为最大月份 (即 12 月)
+    end_month = st.selectbox('月份', all_months, index=11, key='end_month', label_visibility='collapsed')
+
+# 4. 构建日期对象并应用筛选逻辑
+try:
+    # 构造起始日期 (该月的 1 号)
+    start_date = pd.to_datetime(f"{start_year}-{start_month}-01")
+
+    # 构造结束日期 (选择月份的下一月 1 号，作为上界，确保包含选中月份的全部天数)
+    if end_month == 12:
+        end_month_next = 1
+        end_year_next = end_year + 1
+    else:
+        end_month_next = end_month + 1
+        end_year_next = end_year
+
+    end_date = pd.to_datetime(f"{end_year_next}-{end_month_next}-01")
+
+    # 逻辑检查：如果起始日期晚于等于结束日期，显示错误
+    if start_date >= end_date:
+        st.sidebar.error("起始日期不能晚于或等于结束日期！")
+        # 为了防止应用崩溃，我们使用一个空范围
+        df_filtered = df_filtered[0:0]
+    else:
+        # 应用日期筛选 (使用 < 结束日期，因为结束日期是下一月的 1 号)
+        df_filtered = df_filtered[
+            (df_filtered['开播日期'] >= start_date) &
+            (df_filtered['开播日期'] < end_date)
+            ]
+
+except ValueError:
+    st.sidebar.error("日期选择解析失败，请检查年份和月份是否有效。")
 
 # 评分筛选
 min_score = df_original['评分'].min()
@@ -117,7 +167,7 @@ df_sorted = df_filtered.sort_values(by=sort_by, ascending=is_ascending)
 # --- 5. 结果展示 ---
 st.subheader(f"✨ 筛选结果 ({len(df_sorted)} 部动画)")
 
-# 🌟 关键修正：在展示前，创建一个用于显示的副本并格式化日期
+# 在展示前，创建一个用于显示的副本并格式化日期
 df_display = df_sorted.copy()
 df_display['开播日期'] = df_display['开播日期'].dt.strftime('%Y-%m-%d')
 

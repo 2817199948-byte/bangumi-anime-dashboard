@@ -160,13 +160,12 @@ st.subheader(f"✨ 筛选结果 ({len(df_sorted)} 个游戏)")
 
 if len(df_sorted) > 0:
     df_display = df_sorted.copy()
-    df_display.insert(0, '序号', range(1, len(df_display) + 1))
     df_display['发行日期'] = df_display['发行日期'].dt.strftime('%Y-%m-%d')
 
     st.dataframe(
-        df_display[['序号','Bangumi排名', '中文名', '原名', '发行日期', '评分', '评分人数', 'Bangumi链接']],
+        df_display[['Bangumi排名', '中文名', '原名', '发行日期', '评分', '评分人数', 'Bangumi链接']],
         column_config={
-           "序号": st.column_config.NumberColumn("序号", width="small"),
+           "row_numbers": st.column_config.NumberColumn("序号", width="small"),
             "Bangumi链接": st.column_config.LinkColumn(
                 "Bangumi 链接",
                 help="点击可查看 Bangumi 页面",
@@ -183,5 +182,6 @@ else:
     st.info("没有找到符合筛选条件的结果。")
 
 st.caption("数据来源：Bangumi 归档数据库")
+
 
 

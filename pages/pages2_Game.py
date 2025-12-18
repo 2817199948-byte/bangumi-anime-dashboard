@@ -15,9 +15,8 @@ DATA_FILE_NAME = 'game_cleaned.xlsx'  # <--- 已修改为 XLSX
 def load_and_clean_data(file_path):
     df = pd.DataFrame()
 
-    # 尝试加载 XLSX 文件 (游戏数据)
+    # 尝试加载 XLSX 文件
     try:
-        # 使用 pd.read_excel 加载 XLSX 文件
         df = pd.read_excel(file_path, engine='openpyxl')
     except FileNotFoundError:
         st.error(f"找不到数据文件。请确保 '{DATA_FILE_NAME}' 文件存在。")
@@ -30,11 +29,19 @@ def load_and_clean_data(file_path):
         st.error("数据加载失败，无法继续处理。")
         st.stop()
 
-    # 填充中文名为空字符串
-    df['name_cn'] = df['name_cn'].fillna('')
+    rename_dict = {
+        'id': 'ID',
+        'name': '原名',
+        'name_cn': '中文名',
+        'date': '发行日期',
+        'score': '评分',
+        'score_total': '评分人数',
+        'rank': 'Bangumi排名'
+    }
+    df = df.rename(columns=rename_dict)
 
-    # 统一列名
-    df.columns = ['ID', '原名', '中文名', '发行日期', '评分', '评分人数', 'Bangumi排名']
+    if '中文名' in df.columns:
+        df['中文名'] = df['中文名'].fillna('')
 
     # 将日期字符串转换为 datetime 对象
     try:
@@ -52,6 +59,7 @@ def load_and_clean_data(file_path):
     # 创建完整的 Bangumi 链接列
     df['Bangumi链接'] = 'https://bgm.tv/subject/' + df['ID'].astype(str)
 
+    # 最终只选取展示需要的列（这会自动过滤掉 meta_tags 等多余列）
     display_cols = ['中文名', '原名', '发行日期', '评分', '评分人数', 'Bangumi排名', 'Bangumi链接']
     return df[display_cols]
 
@@ -174,3 +182,4 @@ else:
     st.info("没有找到符合筛选条件的结果。")
 
 st.caption("数据来源：Bangumi 归档数据库")
+
